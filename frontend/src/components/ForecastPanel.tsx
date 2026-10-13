@@ -98,21 +98,24 @@ export function ForecastPanel({
           </Stack>
         </Box>
 
-        <Slider
-          aria-label="Forecast hour"
-          min={0}
-          max={48}
-          step={1}
-          marks={HOUR_MARKS}
-          value={hour}
-          disabled={!forecast}
-          onChange={(_event, newValue) => {
-            if (typeof newValue === 'number') {
-              onHourChange(newValue);
-            }
-          }}
-          sx={{ mx: 1, width: 'calc(100% - 16px)' }}
-        />
+        {/* Stack resets the margin of its children, so the room for the mark labels is padding. */}
+        <Box sx={{ px: 2.5, pb: 3 }}>
+          <Slider
+            aria-label="Forecast hour"
+            min={0}
+            max={48}
+            step={1}
+            marks={HOUR_MARKS}
+            value={hour}
+            disabled={!forecast}
+            onChange={(_event, newValue) => {
+              if (typeof newValue === 'number') {
+                onHourChange(newValue);
+              }
+            }}
+            sx={{ mb: 0, '& .MuiSlider-markLabel': { fontSize: '0.75rem' } }}
+          />
+        </Box>
 
         {loading && (
           <Stack spacing={0.5}>

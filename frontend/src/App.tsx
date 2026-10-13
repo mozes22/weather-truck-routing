@@ -52,7 +52,7 @@ export default function App() {
     () => (selectedRoute ? cumulativeMiles(selectedRoute.coordinates) : []),
     [selectedRoute],
   );
-  const truckLocation = useMemo(() => {
+  const truck = useMemo(() => {
     if (!forecast || !selectedRoute) {
       return null;
     }
@@ -190,7 +190,7 @@ export default function App() {
           onSelectRoute={handleSelectRoute}
           highlightedCheckpoint={highlightedCheckpoint}
           heatData={heatData}
-          truckLocation={truckLocation}
+          truck={truck}
         />
         {plan && (
           <ForecastPanel

@@ -19,7 +19,7 @@ import MapView, {
 } from 'react-map-gl/maplibre';
 import type { PlanResponse, RouteOption } from '../api';
 import { describeWeather, formatTime } from '../format';
-import type { LonLat } from '../geo';
+import type { TruckState } from '../geo';
 import { HEATMAP_LAYER } from '../heatmap';
 import { RISK_COLORS, RISK_LABELS, ROUTE_COLORS, riskChipSx } from '../riskStyle';
 
@@ -141,8 +141,8 @@ interface RouteMapProps {
   highlightedCheckpoint: number | null;
   // The weather for the hour on the slider, as map points. Null until it has loaded.
   heatData: FeatureCollection | null;
-  // Where the truck is at the slider time. Null when it is not on the road at that time.
-  truckLocation: LonLat | null;
+  // Where the truck is at the slider time. Null until a route is chosen.
+  truck: TruckState | null;
 }
 
 export function RouteMap({
@@ -151,7 +151,7 @@ export function RouteMap({
   onSelectRoute,
   highlightedCheckpoint,
   heatData,
-  truckLocation,
+  truck,
 }: RouteMapProps) {
   const mapRef = useRef<MapRef>(null);
   // The checkpoint under the mouse (for the popup) and whether the mouse is over a route line.
@@ -272,13 +272,15 @@ export function RouteMap({
           <Layer {...HIGHLIGHT_LAYER} />
         </Source>
 
-        {truckLocation && (
-          <Marker longitude={truckLocation[0]} latitude={truckLocation[1]} anchor="center">
+        {truck && (
+          <Marker longitude={truck.location[0]} latitude={truck.location[1]} anchor="center">
             <Box
               sx={{
                 width: 36,
                 height: 36,
                 borderRadius: '50%',
+                // Dimmed while the truck waits at the origin or destination.
+                opacity: truck.onTheRoad ? 1 : 0.5,
                 bgcolor: 'primary.main',
                 color: '#ffffff',
                 border: '2px solid #ffffff',

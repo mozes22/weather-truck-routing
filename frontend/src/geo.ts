@@ -54,13 +54,20 @@ interface TimeMark {
   mile: number;
 }
 
-// Where the truck is at a given time, or null before it leaves and after it arrives.
+export interface TruckState {
+  location: LonLat;
+  // False while the truck waits at the origin before leaving or at the destination after arriving.
+  onTheRoad: boolean;
+}
+
+// Where the truck is at a given time. Before it leaves it waits at the origin and after it
+// arrives it stays at the destination. Null only when the route has no timing at all.
 // `cumulative` holds the miles along route.coordinates, from cumulativeMiles.
 export function truckPosition(
   route: RouteOption,
   cumulative: number[],
   timeMs: number,
-): LonLat | null {
+): TruckState | null {
   // Known moments: every checkpoint arrival, and the start and end of every break or rest.
   // During a stop the mile stays the same, so the truck stands still.
   const stopMarks = route.stops.flatMap((stop) => {
@@ -81,21 +88,21 @@ export function truckPosition(
   }
   const firstMark = marks[0];
   const lastMark = marks[marks.length - 1];
-  if (timeMs < firstMark.timeMs || timeMs > lastMark.timeMs) {
-    return null;
-  }
+  const onTheRoad = timeMs >= firstMark.timeMs && timeMs <= lastMark.timeMs;
+  // Outside the trip, use the nearest end of it so the truck stays at the origin or destination.
+  const clampedTimeMs = Math.min(Math.max(timeMs, firstMark.timeMs), lastMark.timeMs);
 
   // Blend the miles between the marks just before and just after the wanted time.
-  const nextIndex = marks.findIndex((mark) => mark.timeMs >= timeMs);
+  const nextIndex = marks.findIndex((mark) => mark.timeMs >= clampedTimeMs);
   const nextMark = marks[nextIndex];
   const previousMark = marks[Math.max(nextIndex - 1, 0)];
   const gapMs = nextMark.timeMs - previousMark.timeMs;
-  const fraction = gapMs === 0 ? 1 : (timeMs - previousMark.timeMs) / gapMs;
+  const fraction = gapMs === 0 ? 1 : (clampedTimeMs - previousMark.timeMs) / gapMs;
   const serverMile = previousMark.mile + (nextMark.mile - previousMark.mile) * fraction;
 
   // The server measures miles on the full route and the drawn line is simplified, so the two
   // totals differ slightly. Scale the mile to the drawn line so the truck ends where it ends.
   const drawnMiles = cumulative[cumulative.length - 1];
   const scale = lastMark.mile === 0 ? 1 : drawnMiles / lastMark.mile;
-  return pointAtMile(route.coordinates, cumulative, serverMile * scale);
+  return { location: pointAtMile(route.coordinates, cumulative, serverMile * scale), onTheRoad };
 }
