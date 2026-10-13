@@ -1,5 +1,7 @@
 """Small builders for fake routes and forecasts used across tests."""
 
+from trips.geometry import cumulative_miles
+from trips.routing import RouteGeometry
 from trips.weather import HourlySeries
 
 
@@ -22,3 +24,14 @@ def straight_points(start, end, steps=200):
         )
         for step in range(steps + 1)
     ]
+
+
+def straight_route(start, end, hours=10.0, steps=200):
+    points = straight_points(start, end, steps)
+    return RouteGeometry(
+        points=points,
+        span_offsets=[0],
+        span_durations_s=[hours * 3600],
+        duration_s=hours * 3600,
+        distance_mi=cumulative_miles(points)[-1],
+    )
