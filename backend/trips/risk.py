@@ -203,7 +203,8 @@ def _format_reason_value(label: str, reason_value: float) -> str:
     if label == "travel time":
         return format_duration(reason_value)
     if label == "average risk":
-        return "n/a" if reason_value == math.inf else f"{reason_value:.2f}"
+        # 3 decimals, the same precision the ranking uses, so a real difference is never hidden.
+        return "n/a" if reason_value == math.inf else f"{reason_value:.3f}"
     return f"{reason_value:.0f}"
 
 

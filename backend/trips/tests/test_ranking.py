@@ -95,6 +95,20 @@ class ReasonTests(SimpleTestCase):
             "15h 30m travel time vs 17h 00m on route B.",
         )
 
+    def test_reason_for_average_risk_shows_the_difference(self):
+        # The ranking compares 3 decimals, so the sentence must show 3 as well.
+        # With 2 decimals both routes would read 0.02 and the reason would look wrong.
+        calmer = summarize_route(
+            "A", 36000, [(979, RiskLevel.LOW), (21, RiskLevel.MODERATE)]
+        )
+        slightly_worse = summarize_route(
+            "B", 36000, [(976, RiskLevel.LOW), (24, RiskLevel.MODERATE)]
+        )
+        self.assertEqual(
+            recommendation_reason(calmer, slightly_worse),
+            "0.021 average risk vs 0.024 on route B.",
+        )
+
     def test_reason_single_route(self):
         self.assertEqual(
             recommendation_reason(make_summary("A"), None),
