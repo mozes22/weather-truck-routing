@@ -1,0 +1,9 @@
+# Files that are not uploaded to Cloud Build.
+# Hidden files and folders: local secrets, virtual environments, git data and editor settings.
+.*
+
+node_modules/
+__pycache__/
+frontend/dist/
+docs/
+*.md
