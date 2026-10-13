@@ -1,0 +1,125 @@
+"""Open-Meteo hourly forecasts for many points at once, cached."""
+
+import math
+from dataclasses import dataclass
+from datetime import UTC, datetime
+
+import requests
+from django.core.cache import cache
+
+from trips.geometry import Point
+from trips.risk import WeatherSample
+
+OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
+HOURLY_FIELDS = "wind_speed_10m,wind_gusts_10m,rain,showers,snowfall"
+# Open-Meteo accepts many locations per request. We send them in groups of 100.
+BATCH_SIZE = 100
+CACHE_SECONDS = 30 * 60
+REQUEST_TIMEOUT_S = 20
+
+
+class WeatherUnavailable(Exception):
+    """The forecast could not be fetched (network error, rate limit, bad response)."""
+
+
+@dataclass
+class HourlySeries:
+    """The hourly forecast for one location. Each list has one entry per hour."""
+
+    start_utc: datetime
+    wind_mph: list
+    gust_mph: list
+    rain_in: list
+    showers_in: list
+    snow_in: list
+
+
+def round_coord(lat: float, lon: float) -> Point:
+    """Round to 0.1 degree (about 11 km). Nearby checkpoints share one forecast and one cache entry."""
+    return (round(lat, 1), round(lon, 1))
+
+
+def _cache_key(coord: Point, forecast_days: int) -> str:
+    return f"weather:{coord[0]:.1f}:{coord[1]:.1f}:{forecast_days}"
+
+
+def _request_batch(coords: list[Point], forecast_days: int) -> list[dict]:
+    """One HTTP call for a group of locations. Returns one payload per location."""
+    params = {
+        "latitude": ",".join(f"{lat:.1f}" for lat, _ in coords),
+        "longitude": ",".join(f"{lon:.1f}" for _, lon in coords),
+        "hourly": HOURLY_FIELDS,
+        "wind_speed_unit": "mph",
+        "precipitation_unit": "inch",
+        "timezone": "GMT",
+        "forecast_days": forecast_days,
+    }
+    try:
+        response = requests.get(
+            OPEN_METEO_URL, params=params, timeout=REQUEST_TIMEOUT_S
+        )
+    except requests.RequestException as error:
+        raise WeatherUnavailable(f"Weather service unreachable: {error}") from error
+    if response.status_code != 200:
+        raise WeatherUnavailable(f"Weather service returned {response.status_code}")
+    payload = response.json()
+    # A request for a single location returns a dict, many locations return a list.
+    return payload if isinstance(payload, list) else [payload]
+
+
+def _parse_series(location_payload: dict) -> HourlySeries:
+    hourly = location_payload["hourly"]
+    return HourlySeries(
+        start_utc=datetime.fromisoformat(hourly["time"][0]).replace(tzinfo=UTC),
+        wind_mph=hourly["wind_speed_10m"],
+        gust_mph=hourly["wind_gusts_10m"],
+        rain_in=hourly["rain"],
+        showers_in=hourly["showers"],
+        snow_in=hourly["snowfall"],
+    )
+
+
+def fetch_series(coords, forecast_days: int) -> dict[Point, HourlySeries]:
+    """Forecast for every location, keyed by the rounded coordinate. Uses the cache first."""
+    # dict.fromkeys removes duplicates and keeps the order.
+    unique_coords = list(dict.fromkeys(round_coord(lat, lon) for lat, lon in coords))
+    series_by_coord = {}
+    missing_coords = []
+    for coord in unique_coords:
+        cached_series = cache.get(_cache_key(coord, forecast_days))
+        if cached_series is None:
+            missing_coords.append(coord)
+        else:
+            series_by_coord[coord] = cached_series
+    for batch_start in range(0, len(missing_coords), BATCH_SIZE):
+        batch = missing_coords[batch_start : batch_start + BATCH_SIZE]
+        for coord, location_payload in zip(batch, _request_batch(batch, forecast_days)):
+            series = _parse_series(location_payload)
+            series_by_coord[coord] = series
+            cache.set(_cache_key(coord, forecast_days), series, CACHE_SECONDS)
+    return series_by_coord
+
+
+def sample_at(series: HourlySeries, when_utc: datetime) -> WeatherSample | None:
+    """Weather for the hour the truck is in, or None if that time is outside the forecast.
+
+    Open-Meteo stamps each value at the end of its hour, so a 10:20 arrival uses the 11:00 value.
+    """
+    hours_from_start = (when_utc - series.start_utc).total_seconds() / 3600
+    # The tiny 1e-9 keeps an arrival exactly on the hour in that hour.
+    hour_index = math.ceil(hours_from_start - 1e-9)
+    if hour_index < 0 or hour_index >= len(series.wind_mph):
+        return None
+    wind_mph = series.wind_mph[hour_index]
+    rain_in = series.rain_in[hour_index]
+    snow_in = series.snow_in[hour_index]
+    # Open-Meteo sometimes returns null for an hour. Treat that as no forecast.
+    if wind_mph is None or rain_in is None or snow_in is None:
+        return None
+    return WeatherSample(
+        wind_mph=wind_mph,
+        gust_mph=series.gust_mph[hour_index],
+        # Rain for the risk rules is rain plus showers.
+        rain_in=rain_in + (series.showers_in[hour_index] or 0.0),
+        snow_in=snow_in,
+    )
