@@ -1,6 +1,7 @@
 """Open-Meteo hourly forecasts for many points at once, cached."""
 
 import math
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -15,7 +16,13 @@ HOURLY_FIELDS = "wind_speed_10m,wind_gusts_10m,rain,showers,snowfall"
 # Open-Meteo accepts many locations per request. We send them in groups of 100.
 BATCH_SIZE = 100
 CACHE_SECONDS = 30 * 60
-REQUEST_TIMEOUT_S = 20
+# Open-Meteo can take a minute for a large batch, so we wait longer than usual.
+REQUEST_TIMEOUT_S = 90
+# One try plus one retry. Open-Meteo sometimes answers 503 or hangs, and a second try usually works.
+MAX_ATTEMPTS = 2
+RETRY_DELAY_S = 1
+# "Try again later" answers are retried. Others, such as 429 (rate limit), are not.
+RETRY_STATUS_CODES = (502, 503, 504)
 
 
 class WeatherUnavailable(Exception):
@@ -43,6 +50,30 @@ def _cache_key(coord: Point, forecast_days: int) -> str:
     return f"weather:{coord[0]:.1f}:{coord[1]:.1f}:{forecast_days}"
 
 
+def _get_with_retry(params: dict) -> requests.Response:
+    """Call Open-Meteo, trying once more after a network error or a temporary server error."""
+    for attempt in range(MAX_ATTEMPTS):
+        is_last_attempt = attempt == MAX_ATTEMPTS - 1
+        try:
+            response = requests.get(
+                OPEN_METEO_URL, params=params, timeout=REQUEST_TIMEOUT_S
+            )
+        except requests.RequestException as error:
+            if is_last_attempt:
+                # Only the error type is shown to the driver, not the technical details.
+                raise WeatherUnavailable(
+                    f"Weather service did not respond ({type(error).__name__})."
+                ) from None
+            time.sleep(RETRY_DELAY_S)
+            continue
+        if response.status_code in RETRY_STATUS_CODES and not is_last_attempt:
+            time.sleep(RETRY_DELAY_S)
+            continue
+        return response
+    # The loop always returns or raises. This line only keeps the type checker happy.
+    raise WeatherUnavailable("Weather service did not respond.")
+
+
 def _request_batch(coords: list[Point], forecast_days: int) -> list[dict]:
     """One HTTP call for a group of locations. Returns one payload per location."""
     params = {
@@ -54,12 +85,7 @@ def _request_batch(coords: list[Point], forecast_days: int) -> list[dict]:
         "timezone": "GMT",
         "forecast_days": forecast_days,
     }
-    try:
-        response = requests.get(
-            OPEN_METEO_URL, params=params, timeout=REQUEST_TIMEOUT_S
-        )
-    except requests.RequestException as error:
-        raise WeatherUnavailable(f"Weather service unreachable: {error}") from error
+    response = _get_with_retry(params)
     if response.status_code != 200:
         raise WeatherUnavailable(f"Weather service returned {response.status_code}")
     payload = response.json()

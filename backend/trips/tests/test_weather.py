@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 from unittest.mock import Mock, patch
 
+import requests
 from django.core.cache import cache
 from django.test import SimpleTestCase
 
@@ -62,6 +63,46 @@ class FetchSeriesTests(SimpleTestCase):
         mock_get.return_value = Mock(status_code=429, json=lambda: {"reason": "limit"})
         with self.assertRaises(WeatherUnavailable):
             fetch_series([(41.88, -87.63)], forecast_days=2)
+
+
+@patch("trips.weather.time.sleep")
+@patch("trips.weather.requests.get")
+class RetryTests(SimpleTestCase):
+    def setUp(self):
+        cache.clear()
+
+    def test_retries_once_after_503(self, mock_get, _mock_sleep):
+        mock_get.side_effect = [
+            Mock(status_code=503, json=lambda: {}),
+            Mock(status_code=200, json=lambda: open_meteo_payload(10)),
+        ]
+        result = fetch_series([(41.88, -87.63)], forecast_days=2)
+        self.assertIn((41.9, -87.6), result)
+        self.assertEqual(mock_get.call_count, 2)
+
+    def test_retries_once_after_timeout(self, mock_get, _mock_sleep):
+        mock_get.side_effect = [
+            requests.Timeout(),
+            Mock(status_code=200, json=lambda: open_meteo_payload(10)),
+        ]
+        result = fetch_series([(41.88, -87.63)], forecast_days=2)
+        self.assertIn((41.9, -87.6), result)
+        self.assertEqual(mock_get.call_count, 2)
+
+    def test_gives_up_after_the_second_failure(self, mock_get, _mock_sleep):
+        mock_get.side_effect = [
+            Mock(status_code=503, json=lambda: {}),
+            Mock(status_code=503, json=lambda: {}),
+        ]
+        with self.assertRaises(WeatherUnavailable):
+            fetch_series([(41.88, -87.63)], forecast_days=2)
+        self.assertEqual(mock_get.call_count, 2)
+
+    def test_does_not_retry_a_rate_limit(self, mock_get, _mock_sleep):
+        mock_get.return_value = Mock(status_code=429, json=lambda: {})
+        with self.assertRaises(WeatherUnavailable):
+            fetch_series([(41.88, -87.63)], forecast_days=2)
+        self.assertEqual(mock_get.call_count, 1)
 
 
 class SampleAtTests(SimpleTestCase):
