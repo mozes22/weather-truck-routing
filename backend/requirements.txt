@@ -1,0 +1,23 @@
+# Web framework
+Django>=5.2,<5.3
+
+# REST API views and request validation
+djangorestframework>=3.16,<3.17
+
+# Outbound HTTP calls to HERE and Open-Meteo
+requests>=2.32,<3
+
+# Decodes HERE route polylines into coordinates
+flexpolyline>=0.1,<0.2
+
+# Turns the origin coordinates into a time zone name
+timezonefinder>=6.5,<7
+
+# Lets Django serve the built React app
+whitenoise>=6.8,<7
+
+# Production web server
+gunicorn>=23,<24
+
+# Reads secrets from backend/.env
+python-dotenv>=1.0,<2
