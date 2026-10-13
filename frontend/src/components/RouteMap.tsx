@@ -1,3 +1,4 @@
+import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
@@ -8,6 +9,7 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import MapView, {
   Layer,
+  Marker,
   NavigationControl,
   Popup,
   Source,
@@ -17,6 +19,8 @@ import MapView, {
 } from 'react-map-gl/maplibre';
 import type { PlanResponse, RouteOption } from '../api';
 import { describeWeather, formatTime } from '../format';
+import type { LonLat } from '../geo';
+import { HEATMAP_LAYER } from '../heatmap';
 import { RISK_COLORS, RISK_LABELS, ROUTE_COLORS, riskChipSx } from '../riskStyle';
 
 // MapLibre looks for its worker file next to its own script. Vite moves that script, so the
@@ -135,6 +139,10 @@ interface RouteMapProps {
   selectedRouteId: string;
   onSelectRoute: (routeId: string) => void;
   highlightedCheckpoint: number | null;
+  // The weather for the hour on the slider, as map points. Null until it has loaded.
+  heatData: FeatureCollection | null;
+  // Where the truck is at the slider time. Null when it is not on the road at that time.
+  truckLocation: LonLat | null;
 }
 
 export function RouteMap({
@@ -142,6 +150,8 @@ export function RouteMap({
   selectedRouteId,
   onSelectRoute,
   highlightedCheckpoint,
+  heatData,
+  truckLocation,
 }: RouteMapProps) {
   const mapRef = useRef<MapRef>(null);
   // The checkpoint under the mouse (for the popup) and whether the mouse is over a route line.
@@ -199,7 +209,8 @@ export function RouteMap({
         [west, south],
         [east, north],
       ],
-      { padding: 48, duration: 800 },
+      // Extra room at the bottom, because the forecast panel covers that part of the map.
+      { padding: { top: 48, left: 48, right: 48, bottom: 200 }, duration: 800 },
     );
   }, [plan]);
 
@@ -247,6 +258,10 @@ export function RouteMap({
           <Layer {...ROUTE_CASING_LAYER} />
           <Layer {...ROUTE_LINE_LAYER} />
         </Source>
+        {/* beforeId puts the heatmap under the route lines, so the routes stay on top of it. */}
+        <Source id="corridor-heat" type="geojson" data={heatData ?? EMPTY_FEATURES}>
+          <Layer {...HEATMAP_LAYER} beforeId="routes-casing" />
+        </Source>
         <Source id="stops" type="geojson" data={stopsGeoJson}>
           <Layer {...STOP_LAYER} />
         </Source>
@@ -256,6 +271,26 @@ export function RouteMap({
         <Source id="highlight" type="geojson" data={highlightGeoJson}>
           <Layer {...HIGHLIGHT_LAYER} />
         </Source>
+
+        {truckLocation && (
+          <Marker longitude={truckLocation[0]} latitude={truckLocation[1]} anchor="center">
+            <Box
+              sx={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                bgcolor: 'primary.main',
+                color: '#ffffff',
+                border: '2px solid #ffffff',
+                boxShadow: 3,
+                display: 'grid',
+                placeItems: 'center',
+              }}
+            >
+              <LocalShippingIcon fontSize="small" />
+            </Box>
+          </Marker>
+        )}
 
         {plan && popupCheckpoint && (
           <Popup
