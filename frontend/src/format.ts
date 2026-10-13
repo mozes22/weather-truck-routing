@@ -1,3 +1,5 @@
+import type { Weather } from './api';
+
 // Shows a UTC time in a given time zone, e.g. "Tue 14:00 CDT".
 export function formatTime(iso: string, timeZone: string): string {
   return new Intl.DateTimeFormat('en-US', {
@@ -19,3 +21,12 @@ export function formatDuration(seconds: number): string {
 }
 
 export const formatMiles = (miles: number) => `${Math.round(miles).toLocaleString('en-US')} mi`;
+
+// One line for popups and the timeline, e.g. "Wind 18 mph (gusts 25), rain 0 in, snow 0 in".
+export function describeWeather(weather: Weather | null): string {
+  if (!weather) {
+    return 'No forecast for this time';
+  }
+  const gusts = weather.gust_mph === null ? '' : ` (gusts ${Math.round(weather.gust_mph)})`;
+  return `Wind ${Math.round(weather.wind_mph)} mph${gusts}, rain ${weather.rain_in} in, snow ${weather.snow_in} in`;
+}

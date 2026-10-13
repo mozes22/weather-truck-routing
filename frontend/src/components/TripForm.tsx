@@ -44,7 +44,9 @@ export function TripForm({ loading, fieldErrors, onSubmit }: TripFormProps) {
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!origin || !destination || !canSubmit) return;
+    if (!origin || !destination || !canSubmit) {
+      return;
+    }
     onSubmit({
       driver_name: driverName,
       origin,
@@ -113,7 +115,9 @@ export function TripForm({ loading, fieldErrors, onSubmit }: TripFormProps) {
           value={intervalMiles}
           onChange={(_event, picked: PlanRequest['interval_mi'] | null) => {
             // Clicking the selected button gives null. Ignore it so one option stays selected.
-            if (picked) setIntervalMiles(picked);
+            if (picked) {
+              setIntervalMiles(picked);
+            }
           }}
         >
           {INTERVAL_OPTIONS.map((miles) => (

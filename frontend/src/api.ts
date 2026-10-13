@@ -116,7 +116,9 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const body = await response.json().catch(() => null);
   if (!response.ok) {
     // 422 and 502 come with {"detail": "..."}.
-    if (body && typeof body.detail === 'string') throw new ApiError(body.detail);
+    if (body && typeof body.detail === 'string') {
+      throw new ApiError(body.detail);
+    }
     if (body && typeof body === 'object') {
       throw new ApiError('Please check the highlighted fields.', toFieldErrors(body));
     }

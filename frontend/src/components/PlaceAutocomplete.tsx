@@ -24,7 +24,9 @@ export function PlaceAutocomplete({ label, value, onChange, error }: PlaceAutoco
   const shouldSearch = query.length >= MIN_QUERY_LENGTH && query !== value?.label;
 
   useEffect(() => {
-    if (!shouldSearch) return;
+    if (!shouldSearch) {
+      return;
+    }
     // The controller lets us cancel the request if the user keeps typing.
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
@@ -32,9 +34,13 @@ export function PlaceAutocomplete({ label, value, onChange, error }: PlaceAutoco
       try {
         setFoundPlaces(await searchPlaces(query, controller.signal));
       } catch {
-        if (!controller.signal.aborted) setFoundPlaces([]);
+        if (!controller.signal.aborted) {
+          setFoundPlaces([]);
+        }
       } finally {
-        if (!controller.signal.aborted) setSearching(false);
+        if (!controller.signal.aborted) {
+          setSearching(false);
+        }
       }
     }, DEBOUNCE_MS);
     return () => {

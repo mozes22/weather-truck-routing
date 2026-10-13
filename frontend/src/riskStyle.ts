@@ -18,5 +18,11 @@ export const RISK_LABELS: Record<RiskLabel, string> = {
   unknown: 'No forecast',
 };
 
+// Chip colours for a risk level. Light backgrounds (yellow, grey) need dark text to stay readable.
+export function riskChipSx(level: RiskLabel) {
+  const hasLightBackground = level === 'moderate' || level === 'unknown';
+  return { bgcolor: RISK_COLORS[level], color: hasLightBackground ? '#212121' : '#ffffff' };
+}
+
 // Blue, teal and brown: distinct from each other and from the risk colours.
 export const ROUTE_COLORS: Record<string, string> = { A: '#1565c0', B: '#00838f', C: '#6d4c41' };
