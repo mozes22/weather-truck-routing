@@ -11,6 +11,9 @@
     "dbaeumer.vscode-eslint",
 
     // Format the frontend code
-    "esbenp.prettier-vscode"
+    "esbenp.prettier-vscode",
+
+    // Follow the shared indent and newline rules from .editorconfig
+    "EditorConfig.EditorConfig"
   ]
 }
