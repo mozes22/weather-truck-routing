@@ -1,0 +1,16 @@
+{
+  // VS Code offers to install these when the folder is opened
+  "recommendations": [
+    // Python language support, debugging and test runner
+    "ms-python.python",
+
+    // Fast type checking and autocomplete for Python
+    "ms-python.vscode-pylance",
+
+    // Lint the React and TypeScript code
+    "dbaeumer.vscode-eslint",
+
+    // Format the frontend code
+    "esbenp.prettier-vscode"
+  ]
+}

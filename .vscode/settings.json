@@ -1,0 +1,38 @@
+{
+  // Use the project's Python 3.13 virtual environment
+  "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/bin/python",
+
+  // Activate the venv in new terminals
+  "python.terminal.activateEnvironment": true,
+
+  // Let the editor resolve imports like "from trips.risk import ..."
+  "python.analysis.extraPaths": ["${workspaceFolder}/backend"],
+
+  // Keep the explorer clean
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true
+  },
+
+  // Do not scan these folders when searching
+  "search.exclude": {
+    "**/.venv": true,
+    "**/node_modules": true,
+    "**/dist": true
+  },
+
+  // Tidy files on save
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+
+  // Frontend files use Prettier
+  "[typescript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[typescriptreact]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[json]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[jsonc]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[typescript][typescriptreact]": { "editor.formatOnSave": true },
+
+  // Python files are 4 spaces, frontend files are 2
+  "[python]": { "editor.tabSize": 4 },
+  "editor.tabSize": 2
+}
