@@ -1,6 +1,5 @@
 """Builds a full trip plan: routes, checkpoints, ETAs, weather risk, ranking, warnings."""
 
-import math
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -27,14 +26,18 @@ from trips.risk import (
 )
 from trips.routing import LEGAL_GROSS_LB, get_route_options, gross_weight_lb
 from trips.timeline import cumulative_driving_seconds
-from trips.weather import WeatherUnavailable, fetch_series, round_coord, sample_at
+from trips.weather import (
+    WeatherUnavailable,
+    fetch_series,
+    forecast_days_until,
+    round_coord,
+    sample_at,
+)
 
 # A route is a plain dict, because it is sent to the frontend as JSON.
 Route = dict[str, Any]
 
 ROUTE_IDS = ("A", "B", "C")
-# Open-Meteo forecasts at most 16 days ahead.
-MAX_FORECAST_DAYS = 16
 # Spacing of the points of the line drawn on the map. Smaller means smoother and heavier.
 MAP_LINE_STEP_MI = 0.3
 
@@ -119,13 +122,7 @@ def _attach_weather(
     ]
     last_eta = max(checkpoint["eta"] for checkpoint in all_checkpoints)
     # Ask for enough forecast days to reach the last arrival.
-    forecast_days = max(
-        1,
-        min(
-            MAX_FORECAST_DAYS,
-            math.ceil((last_eta - now_utc).total_seconds() / 86400) + 1,
-        ),
-    )
+    forecast_days = forecast_days_until(last_eta, now_utc)
     coords = [
         round_coord(checkpoint["lat"], checkpoint["lon"])
         for checkpoint in all_checkpoints

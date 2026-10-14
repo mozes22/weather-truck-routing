@@ -12,7 +12,7 @@ from trips.geometry import (
     sample_miles,
 )
 from trips.risk import assess, effective_wind
-from trips.weather import fetch_series, round_coord, sample_at
+from trips.weather import fetch_series, forecast_days_until, round_coord, sample_at
 
 # A grid point every 15.5 miles (about 25 km) along each route.
 GRID_SPACING_MI = 15.5
@@ -20,10 +20,8 @@ GRID_SPACING_MI = 15.5
 SIDE_OFFSET_MI = 25.0
 # Open-Meteo takes about half a second per location, so the grid is kept small.
 MAX_GRID_POINTS = 120
-# The heatmap slider covers now plus 48 hours, one step per hour.
+# The heatmap slider covers 48 hours from its start (the departure), one step per hour.
 FORECAST_HOURS = 48
-# 3 forecast days cover now plus 48 hours from any time of the day.
-CORRIDOR_FORECAST_DAYS = 3
 
 
 def build_grid(
@@ -56,17 +54,25 @@ def build_grid(
 
 
 def forecast_corridor(
-    grid_points: list[list[float]], load_lb: float, now_utc: datetime | None = None
+    grid_points: list[list[float]],
+    load_lb: float,
+    start_utc: datetime | None = None,
+    now_utc: datetime | None = None,
 ) -> dict[str, Any]:
-    """Hour by hour weather and risk for every grid point, from the current hour to +48 h.
+    """Hour by hour weather and risk for every grid point, from the start hour to +48 h.
 
+    The start is normally the departure, used exactly as given, so row N is the weather
+    N hours after the truck leaves, by the same rule as the route checkpoints. It defaults
+    to the current hour and is never earlier than that, because the forecast has no past hours.
     Each result list has one row per hour and one value per point (None when unknown),
     so the frontend can switch hours without calling the server again.
     """
     now_utc = now_utc or datetime.now(UTC)
-    start_utc = now_utc.replace(minute=0, second=0, microsecond=0)
+    current_hour_utc = now_utc.replace(minute=0, second=0, microsecond=0)
+    start_utc = max(start_utc or current_hour_utc, current_hour_utc).astimezone(UTC)
+    last_hour_utc = start_utc + timedelta(hours=FORECAST_HOURS)
     coords = [round_coord(lat, lon) for lat, lon in grid_points]
-    series_by_coord = fetch_series(coords, CORRIDOR_FORECAST_DAYS)
+    series_by_coord = fetch_series(coords, forecast_days_until(last_hour_utc, now_utc))
 
     risk_by_hour, wind_by_hour, rain_by_hour, snow_by_hour = [], [], [], []
     for hour_offset in range(FORECAST_HOURS + 1):

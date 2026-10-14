@@ -21,7 +21,6 @@ import { cumulativeMiles, truckPosition } from './geo';
 import { heatDataFor, type HeatLayerKey } from './heatmap';
 
 const MS_PER_HOUR = 3_600_000;
-const LAST_FORECAST_HOUR = 48;
 
 export default function App() {
   const [plan, setPlan] = useState<PlanResponse | null>(null);
@@ -63,16 +62,17 @@ export default function App() {
   async function loadForecast(result: PlanResponse, loadLb: number, requestId: number) {
     setForecastLoading(true);
     try {
-      const corridorForecast = await fetchCorridorForecast(result.corridor_grid, loadLb);
+      // The forecast starts at the departure, so hour 0 on the slider is when the truck leaves.
+      const corridorForecast = await fetchCorridorForecast(
+        result.corridor_grid,
+        loadLb,
+        result.departure,
+      );
       if (requestId !== latestRequestId.current) {
         return;
       }
       setForecast(corridorForecast);
-      // Start the slider at the hour the trip begins.
-      const hoursUntilDeparture = Math.round(
-        (Date.parse(result.departure) - Date.parse(corridorForecast.start)) / MS_PER_HOUR,
-      );
-      setForecastHour(Math.min(Math.max(hoursUntilDeparture, 0), LAST_FORECAST_HOUR));
+      setForecastHour(0);
     } catch (error) {
       if (requestId !== latestRequestId.current) {
         return;

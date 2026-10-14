@@ -67,7 +67,11 @@ def corridor_forecast(request):
     request_data = cast(dict[str, Any], serializer.validated_data)
     try:
         return Response(
-            corridor.forecast_corridor(request_data["points"], request_data["load_lb"])
+            corridor.forecast_corridor(
+                request_data["points"],
+                request_data["load_lb"],
+                start_utc=request_data.get("start"),
+            )
         )
     except WeatherUnavailable as error:
         return Response({"detail": str(error)}, status=status.HTTP_502_BAD_GATEWAY)

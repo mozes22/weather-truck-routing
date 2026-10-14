@@ -133,8 +133,9 @@ export const searchPlaces = (query: string, signal: AbortSignal) =>
 export const planTrip = (planRequest: PlanRequest) =>
   request<PlanResponse>('/api/plan', { method: 'POST', body: JSON.stringify(planRequest) });
 
-export const fetchCorridorForecast = (points: [number, number][], loadLb: number) =>
+// `start` is when the 48 hour forecast begins, normally the departure time from the plan.
+export const fetchCorridorForecast = (points: [number, number][], loadLb: number, start: string) =>
   request<CorridorForecast>('/api/corridor-forecast', {
     method: 'POST',
-    body: JSON.stringify({ points, load_lb: loadLb }),
+    body: JSON.stringify({ points, load_lb: loadLb, start }),
   });

@@ -16,6 +16,8 @@ HOURLY_FIELDS = "wind_speed_10m,wind_gusts_10m,rain,showers,snowfall"
 # Open-Meteo accepts many locations per request. We send them in groups of 100.
 BATCH_SIZE = 100
 CACHE_SECONDS = 30 * 60
+# Open-Meteo forecasts at most 16 days ahead.
+MAX_FORECAST_DAYS = 16
 # Open-Meteo can take a minute for a large batch, so we wait longer than usual.
 REQUEST_TIMEOUT_S = 90
 # One try plus one retry. Open-Meteo sometimes answers 503 or hangs, and a second try usually works.
@@ -103,6 +105,14 @@ def _parse_series(location_payload: dict) -> HourlySeries:
         showers_in=hourly["showers"],
         snow_in=hourly["snowfall"],
     )
+
+
+def forecast_days_until(last_moment_utc: datetime, now_utc: datetime) -> int:
+    """How many forecast days to ask for so the forecast reaches the given moment."""
+    # Open-Meteo counts days from midnight today at the location, so one extra day covers
+    # the hours already passed today.
+    days = math.ceil((last_moment_utc - now_utc).total_seconds() / 86400) + 1
+    return max(1, min(MAX_FORECAST_DAYS, days))
 
 
 def fetch_series(coords, forecast_days: int) -> dict[Point, HourlySeries]:

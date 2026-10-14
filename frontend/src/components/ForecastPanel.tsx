@@ -37,8 +37,10 @@ export function ForecastPanel({
   timezone,
 }: ForecastPanelProps) {
   const layer = HEAT_LAYERS[layerKey];
+  // Hour 0 is the departure, and the other hours count from it.
+  const hoursAfterDeparture = hour === 0 ? 'departure' : `+${hour} h`;
   const hourLabel = forecast
-    ? `${formatTime(new Date(Date.parse(forecast.start) + hour * MS_PER_HOUR).toISOString(), timezone)} · +${hour} h`
+    ? `${formatTime(new Date(Date.parse(forecast.start) + hour * MS_PER_HOUR).toISOString(), timezone)} · ${hoursAfterDeparture}`
     : 'Weather forecast';
 
   return (
@@ -101,7 +103,7 @@ export function ForecastPanel({
         {/* Stack resets the margin of its children, so the room for the mark labels is padding. */}
         <Box sx={{ px: 2.5, pb: 3 }}>
           <Slider
-            aria-label="Forecast hour"
+            aria-label="Hours after departure"
             min={0}
             max={48}
             step={1}

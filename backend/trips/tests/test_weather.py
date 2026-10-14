@@ -6,7 +6,13 @@ from django.core.cache import cache
 from django.test import SimpleTestCase
 
 from trips.tests.factories import series_from
-from trips.weather import WeatherUnavailable, fetch_series, sample_at
+from trips.weather import (
+    MAX_FORECAST_DAYS,
+    WeatherUnavailable,
+    fetch_series,
+    forecast_days_until,
+    sample_at,
+)
 
 
 def open_meteo_payload(wind):
@@ -103,6 +109,30 @@ class RetryTests(SimpleTestCase):
         with self.assertRaises(WeatherUnavailable):
             fetch_series([(41.88, -87.63)], forecast_days=2)
         self.assertEqual(mock_get.call_count, 1)
+
+
+class ForecastDaysUntilTests(SimpleTestCase):
+    NOW = datetime(2026, 10, 14, 10, 25, tzinfo=UTC)
+
+    def test_a_moment_today_needs_one_day(self):
+        self.assertEqual(forecast_days_until(self.NOW, self.NOW), 1)
+
+    def test_covers_the_hours_already_passed_today(self):
+        # 48 h ahead is exactly 2 days, plus the extra day for today's past hours.
+        later = datetime(2026, 10, 16, 10, 25, tzinfo=UTC)
+        self.assertEqual(forecast_days_until(later, self.NOW), 3)
+
+    def test_a_partial_day_rounds_up(self):
+        later = datetime(2026, 10, 15, 11, 0, tzinfo=UTC)
+        self.assertEqual(forecast_days_until(later, self.NOW), 3)
+
+    def test_never_more_than_open_meteo_allows(self):
+        later = datetime(2026, 12, 1, tzinfo=UTC)
+        self.assertEqual(forecast_days_until(later, self.NOW), MAX_FORECAST_DAYS)
+
+    def test_a_moment_in_the_past_still_needs_one_day(self):
+        earlier = datetime(2026, 10, 10, tzinfo=UTC)
+        self.assertEqual(forecast_days_until(earlier, self.NOW), 1)
 
 
 class SampleAtTests(SimpleTestCase):

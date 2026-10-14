@@ -42,6 +42,55 @@ class ForecastCorridorTests(SimpleTestCase):
         self.assertEqual(result["risk"][2], [3, 3])
         self.assertEqual(result["wind"][2], [50.0, 50.0])
 
+    def test_start_in_the_future_moves_the_whole_window(self, mock_series):
+        result = forecast_corridor(
+            [[41.0, -100.0]],
+            load_lb=20000,
+            start_utc=datetime(2026, 10, 15, 19, 30, tzinfo=UTC),
+            now_utc=NOW,
+        )
+        # The start is the departure as given, and row 0 is the weather at that moment.
+        self.assertEqual(result["start"], "2026-10-15T19:30:00Z")
+        self.assertEqual(result["risk"][0], [3])
+        # The stub forecast ends 24 h before the window does, so the last hour is unknown.
+        self.assertEqual(result["risk"][-1], [None])
+        # 48 h after the start is 3.4 days from now, so the forecast needs 5 days.
+        self.assertEqual(mock_series.call_args.args[1], 5)
+
+    def test_start_without_a_value_means_now(self, mock_series):
+        result = forecast_corridor([[41.0, -100.0]], load_lb=20000, now_utc=NOW)
+        self.assertEqual(result["start"], "2026-10-14T10:00:00Z")
+        self.assertEqual(mock_series.call_args.args[1], 3)
+
+    def test_start_in_the_past_is_moved_to_the_current_hour(self, _mock_series):
+        result = forecast_corridor(
+            [[41.0, -100.0]],
+            load_lb=20000,
+            start_utc=datetime(2026, 10, 14, 5, 0, tzinfo=UTC),
+            now_utc=NOW,
+        )
+        self.assertEqual(result["start"], "2026-10-14T10:00:00Z")
+
+    def test_endpoint_accepts_a_start(self, _mock_series):
+        response: Any = APIClient().post(
+            "/api/corridor-forecast",
+            {
+                "points": [[41.0, -100.0]],
+                "load_lb": 20000,
+                "start": "2026-10-15T19:30:00Z",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_endpoint_rejects_a_bad_start(self, _mock_series):
+        response: Any = APIClient().post(
+            "/api/corridor-forecast",
+            {"points": [[41.0, -100.0]], "load_lb": 20000, "start": "tomorrow"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
     def test_endpoint(self, _mock_series):
         response: Any = APIClient().post(
             "/api/corridor-forecast",

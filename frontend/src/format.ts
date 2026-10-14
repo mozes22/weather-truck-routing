@@ -1,13 +1,14 @@
 import type { Weather } from './api';
 
-// Shows a UTC time in a given time zone, e.g. "Tue 14:00 CDT".
+// Shows a UTC time in a given time zone, e.g. "Tue, 02:00 PM CDT". Same 12 hour style as the
+// departure field in the form.
 export function formatTime(iso: string, timeZone: string): string {
   return new Intl.DateTimeFormat('en-US', {
     timeZone,
     weekday: 'short',
     hour: '2-digit',
     minute: '2-digit',
-    hour12: false,
+    hour12: true,
     timeZoneName: 'short',
   }).format(new Date(iso));
 }

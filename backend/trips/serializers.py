@@ -84,3 +84,5 @@ class CorridorForecastRequestSerializer(serializers.Serializer):
         max_length=400,
     )
     load_lb = serializers.IntegerField(min_value=0, max_value=MAX_LOAD_LB)
+    # When the 48 hour forecast starts, normally the departure from /api/plan. Defaults to now.
+    start = serializers.DateTimeField(required=False)
