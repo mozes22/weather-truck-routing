@@ -1,4 +1,7 @@
 {
+  // Save files automatically when switching away from the editor
+  "files.autoSave": "onFocusChange",
+
   // Use the project's Python 3.13 virtual environment
   "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/bin/python",
 

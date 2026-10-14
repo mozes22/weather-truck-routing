@@ -1,12 +1,26 @@
 {
-  "name": "frontend",
+  "name": "weather-truck-routing-frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "React and MapLibre frontend for weather-aware truck routing",
+  "license": "MIT",
+  "author": "Moussa Arbid",
+  "homepage": "https://weather-truck-routing-159685347492.us-central1.run.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mozes22/weather-truck-routing.git",
+    "directory": "frontend"
+  },
+  "engines": {
+    "node": ">=24"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "lint:py": "uvx ruff check ../backend",
+    "lint:all": "npm run lint && npm run lint:py",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "preview": "vite preview"
