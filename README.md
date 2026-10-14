@@ -73,7 +73,15 @@ cd frontend && npm run build && npm run lint && npm run format:check
 
 ## Deploy
 
-One Docker image: a Node stage builds the React app, then a slim Python image serves the API and the built app together with gunicorn and WhiteNoise. It runs on Google Cloud Run, deployed with `gcloud run deploy --source .`. The HERE key and the Django secret live in Secret Manager.
+One Docker image: a Node stage builds the React app, then a slim Python image serves the API and the built app together with gunicorn and WhiteNoise. It runs on Google Cloud Run.
+
+To redeploy, run this from the repo root:
+
+```bash
+gcloud run deploy weather-truck-routing --source . --region us-central1
+```
+
+The service keeps its settings and secrets (the HERE key and the Django secret live in Secret Manager), so a redeploy needs nothing else.
 
 ## Trade-offs and next steps
 
