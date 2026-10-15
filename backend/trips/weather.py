@@ -2,7 +2,6 @@
 
 import math
 import time
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -14,10 +13,10 @@ from trips.risk import WeatherSample
 
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 HOURLY_FIELDS = "wind_speed_10m,wind_gusts_10m,rain,showers,snowfall"
-# Open-Meteo accepts many locations per request. We send them in small groups, side by side.
-# On Cloud Run a request for 90 locations hung until the timeout, while 30 answered in about a second.
+# Open-Meteo accepts many locations per request. We send them in small groups, one after another.
+# On Cloud Run a request for 90 locations hung until the timeout, and so did two groups sent at
+# the same time. One group of 30 answers in about a second.
 BATCH_SIZE = 30
-MAX_PARALLEL_BATCHES = 4
 CACHE_SECONDS = 30 * 60
 # Open-Meteo forecasts at most 16 days ahead.
 MAX_FORECAST_DAYS = 16
@@ -130,19 +129,9 @@ def fetch_series(coords, forecast_days: int) -> dict[Point, HourlySeries]:
             missing_coords.append(coord)
         else:
             series_by_coord[coord] = cached_series
-    batches = [
-        missing_coords[batch_start : batch_start + BATCH_SIZE]
-        for batch_start in range(0, len(missing_coords), BATCH_SIZE)
-    ]
-    if not batches:
-        return series_by_coord
-    # The batches are sent side by side. If one fails, the error reaches the caller as before.
-    with ThreadPoolExecutor(max_workers=MAX_PARALLEL_BATCHES) as pool:
-        payloads_per_batch = list(
-            pool.map(lambda batch: _request_batch(batch, forecast_days), batches)
-        )
-    for batch, payloads in zip(batches, payloads_per_batch):
-        for coord, location_payload in zip(batch, payloads):
+    for batch_start in range(0, len(missing_coords), BATCH_SIZE):
+        batch = missing_coords[batch_start : batch_start + BATCH_SIZE]
+        for coord, location_payload in zip(batch, _request_batch(batch, forecast_days)):
             series = _parse_series(location_payload)
             series_by_coord[coord] = series
             cache.set(_cache_key(coord, forecast_days), series, CACHE_SECONDS)
