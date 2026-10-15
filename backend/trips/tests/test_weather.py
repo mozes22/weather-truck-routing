@@ -65,6 +65,39 @@ class FetchSeriesTests(SimpleTestCase):
         self.assertEqual(mock_get.call_count, 1)
 
     @patch("trips.weather.requests.get")
+    def test_many_locations_are_split_into_batches(self, mock_get):
+        def answer(_url, params, timeout):
+            location_count = len(params["latitude"].split(","))
+            return Mock(
+                status_code=200,
+                json=lambda: [open_meteo_payload(10)] * location_count,
+            )
+
+        mock_get.side_effect = answer
+        coords = [(30 + index * 0.1, -90.0) for index in range(70)]
+        result = fetch_series(coords, forecast_days=2)
+        self.assertEqual(len(result), 70)
+        # 70 locations at 30 per request is three requests.
+        self.assertEqual(mock_get.call_count, 3)
+
+    @patch("trips.weather.requests.get")
+    def test_one_failed_batch_fails_the_whole_fetch(self, mock_get):
+        def answer(_url, params, timeout):
+            location_count = len(params["latitude"].split(","))
+            # The batch that holds the first location gets a rate limit answer.
+            if params["latitude"].startswith("30.0"):
+                return Mock(status_code=429, json=lambda: {"reason": "limit"})
+            return Mock(
+                status_code=200,
+                json=lambda: [open_meteo_payload(10)] * location_count,
+            )
+
+        mock_get.side_effect = answer
+        coords = [(30 + index * 0.1, -90.0) for index in range(70)]
+        with self.assertRaises(WeatherUnavailable):
+            fetch_series(coords, forecast_days=2)
+
+    @patch("trips.weather.requests.get")
     def test_http_error_raises_weather_unavailable(self, mock_get):
         mock_get.return_value = Mock(status_code=429, json=lambda: {"reason": "limit"})
         with self.assertRaises(WeatherUnavailable):

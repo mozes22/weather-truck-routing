@@ -123,6 +123,21 @@ export default function App() {
     }
   }
 
+  // Emptying From or To removes the plan and the heatmap. The counter bump makes any answer
+  // that is still on its way get ignored.
+  function handleClearTrip() {
+    latestRequestId.current += 1;
+    setPlan(null);
+    setSelectedRouteId('');
+    setHighlightedCheckpoint(null);
+    setForecast(null);
+    setForecastError(null);
+    setForecastLoading(false);
+    setLoading(false);
+    setErrorMessage(null);
+    setFieldErrors({});
+  }
+
   function handleSelectRoute(routeId: string) {
     setSelectedRouteId(routeId);
     setHighlightedCheckpoint(null);
@@ -146,7 +161,12 @@ export default function App() {
         }}
       >
         <Stack spacing={2}>
-          <TripForm loading={loading} fieldErrors={fieldErrors} onSubmit={handlePlan} />
+          <TripForm
+            loading={loading}
+            fieldErrors={fieldErrors}
+            onSubmit={handlePlan}
+            onPlaceCleared={handleClearTrip}
+          />
           {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
 
           {loading && (

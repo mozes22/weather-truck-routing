@@ -28,9 +28,11 @@ interface TripFormProps {
   // Messages from the server, per field name (origin, destination, departure, load_lb).
   fieldErrors: Record<string, string>;
   onSubmit: (planRequest: PlanRequest) => void;
+  // Called when From or To is emptied, so the plan of the old trip can be removed.
+  onPlaceCleared: () => void;
 }
 
-export function TripForm({ loading, fieldErrors, onSubmit }: TripFormProps) {
+export function TripForm({ loading, fieldErrors, onSubmit, onPlaceCleared }: TripFormProps) {
   const [driverName, setDriverName] = useState('');
   const [origin, setOrigin] = useState<Place | null>(null);
   const [destination, setDestination] = useState<Place | null>(null);
@@ -41,6 +43,16 @@ export function TripForm({ loading, fieldErrors, onSubmit }: TripFormProps) {
   const loadLb = Number(loadText);
   const loadInvalid = loadText === '' || Number.isNaN(loadLb) || loadLb < 0 || loadLb > MAX_LOAD_LB;
   const canSubmit = Boolean(origin && destination && departure) && !loadInvalid && !loading;
+
+  // Emptying From or To also removes the plan of the old trip.
+  function changePlace(setPlace: (place: Place | null) => void) {
+    return (place: Place | null) => {
+      setPlace(place);
+      if (!place) {
+        onPlaceCleared();
+      }
+    };
+  }
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -72,13 +84,13 @@ export function TripForm({ loading, fieldErrors, onSubmit }: TripFormProps) {
       <PlaceAutocomplete
         label="From"
         value={origin}
-        onChange={setOrigin}
+        onChange={changePlace(setOrigin)}
         error={fieldErrors.origin}
       />
       <PlaceAutocomplete
         label="To"
         value={destination}
-        onChange={setDestination}
+        onChange={changePlace(setDestination)}
         error={fieldErrors.destination}
       />
       <TextField
