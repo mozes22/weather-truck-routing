@@ -5,7 +5,7 @@ Pick the safest truck route between two places. The app finds up to three routes
 - Live app: https://weather-truck-routing-159685347492.us-central1.run.app
 - Walkthrough video: Loom link added at submission
 
-The first trip you plan can take 20 to 40 seconds. The weather service is slow, and the app shows a loading state while it waits.
+A new trip takes a few seconds to plan, and a repeat is faster because forecasts are cached for 30 minutes. The app shows a loading state while it waits.
 
 ## How it works
 
